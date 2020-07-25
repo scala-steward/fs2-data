@@ -23,45 +23,45 @@ import cats.implicits._
 
 import _root_.io.circe.Json
 
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import weaver._
 
-class JsonExceptionSpec extends AnyFlatSpec with Matchers {
+object JsonExceptionSpec extends SimpleIOSuite {
 
-  "previous valid tokens" should "be emitted before Exception" in {
-
+  pureTest("previous valid tokens should be emitted before Exception") {
     val input = """{"key": }"""
 
     val stream = Stream.emit(input).through(tokens[Fallible, String]).attempt
 
-    stream.compile.toList should matchPattern {
-      case Right(List(Right(Token.StartObject), Right(Token.Key("key")), Left(_: JsonException))) =>
-    }
-
+    expect(stream.compile.toList match {
+      case Right(List(Right(Token.StartObject), Right(Token.Key("key")), Left(_: JsonException))) => true
+      case _                                                                                      => false
+    })
   }
 
-  "previous selected tokens" should "be emitted before Exception" in {
+  pureTest("previous selected tokens should be emitted before Exception") {
 
     val input = """{"key1": 1}[]"""
 
     val selector = ".key1".parseSelector[Either[Throwable, *]].fold(throw _, identity)
     val stream = Stream.emit(input).through(tokens[Fallible, String]).through(filter(selector)).attempt
 
-    stream.compile.toList should matchPattern {
-      case Right(List(Right(Token.NumberValue("1")), Left(_: JsonException))) =>
-    }
+    expect(stream.compile.toList match {
+      case Right(List(Right(Token.NumberValue("1")), Left(_: JsonException))) => true
+      case _                                                                  => false
+    })
 
   }
 
-  "previous valid values" should "be emitted before Exception" in {
+  pureTest("previous valid values should be emitted before Exception") {
 
     val input = """{"key": "value"}[1,"""
 
     val stream = Stream.emit(input).through(tokens[Fallible, String]).through(values).attempt
 
-    stream.compile.toList should matchPattern {
-      case Right(List(Right(o), Left(_: JsonException))) if o == Json.obj("key" -> Json.fromString("value")) =>
-    }
+    expect(stream.compile.toList match {
+      case Right(List(Right(o), Left(_: JsonException))) if o == Json.obj("key" -> Json.fromString("value")) => true
+      case _                                                                                                 => false
+    })
 
   }
 

@@ -19,20 +19,19 @@ import circe._
 
 import fs2._
 
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import weaver._
 
-class TokenizerSpec extends AnyFlatSpec with Matchers {
+object TokenizerSpec extends SimpleIOSuite {
 
-  "`tokenize` and `values`" should "work well together" in {
+  pureTest("`tokenize` and `values` should work well together") {
 
-    val input = Stream.emits("""true {"field1": "test", "field2": 23}""")
+    val input = Stream.emit("""true {"field1": "test", "field2": 23}""")
 
-    val toks = input.through(tokens[Fallible, Char])
+    val toks = input.through(tokens[Fallible, String])
 
     val roundtrip = toks.through(values).through(tokenize)
 
-    toks.compile.toList shouldBe roundtrip.compile.toList
+    expect(toks.compile.toList == roundtrip.compile.toList)
 
   }
 

@@ -193,7 +193,7 @@ private[xml] object EventParser {
           val sb = new StringBuilder
           untilChar(T.advance(ctx), c => !isNCNameChar(c), sb.append(c), chunkAcc).map {
             case (ctx, chunkAcc) =>
-              (ctx, chunkAcc, sb.result)
+              (ctx, chunkAcc, sb.result())
           }
         } else {
           fail("5", s"character '$c' cannot start a NCName", Some(chunkAcc))
@@ -344,7 +344,7 @@ private[xml] object EventParser {
                   case (ctx, chunkAcc) =>
                     peekChar(ctx, chunkAcc).flatMap {
                       case Some((ctx, chunkAcc, '>')) =>
-                        Pull.pure((T.advance(ctx), chunkAcc, sb.result))
+                        Pull.pure((T.advance(ctx), chunkAcc, sb.result()))
                       case Some((ctx, chunkAcc, _)) =>
                         loop(ctx, sb.append('?'), chunkAcc)
                       case None =>
@@ -418,7 +418,7 @@ private[xml] object EventParser {
                 val sb = new StringBuilder
                 untilChar(ctx, pred, sb, chunkAcc).flatMap {
                   case (ctx, chunkAcc) =>
-                    Pull.pure((T.advance(ctx), chunkAcc, sb.result))
+                    Pull.pure((T.advance(ctx), chunkAcc, sb.result()))
                 }
             }
       }
@@ -534,7 +534,7 @@ private[xml] object EventParser {
                                                                chunkAcc)
                   res <- loop(ctx, attributes += Attr(name, value), chunkAcc)
                 } yield res
-              case Some((ctx, chunkAcc, _)) => Pull.pure((ctx, chunkAcc, attributes.result.toList))
+              case Some((ctx, chunkAcc, _)) => Pull.pure((ctx, chunkAcc, attributes.result().toList))
               case None                     => fail("1", "unexpected end of input", None)
             }
         }
@@ -555,7 +555,7 @@ private[xml] object EventParser {
             case (ctx, chunkAcc, c) if Some(c) == delim =>
               if (!current.isEmpty)
                 builder += XmlEvent.XmlString(current.toString, false)
-              Pull.pure((ctx, chunkAcc, builder.result.toList))
+              Pull.pure((ctx, chunkAcc, builder.result().toList))
             case (ctx, chunkAcc, '\r') =>
               nextChar(ctx, chunkAcc).flatMap {
                 case (ctx, chunkAcc, '\n') =>
@@ -634,7 +634,7 @@ private[xml] object EventParser {
               peekChar(ctx, chunkAcc).flatMap {
                 case Some((ctx, chunkAcc, ']')) =>
                   checkCDATAEnd(T.advance(ctx), sb, chunkAcc).flatMap {
-                    case (ctx, chunkAcc, true)  => Pull.pure((ctx, chunkAcc, sb.result))
+                    case (ctx, chunkAcc, true)  => Pull.pure((ctx, chunkAcc, sb.result()))
                     case (ctx, chunkAcc, false) => readCDATABody(ctx, sb, chunkAcc)
                   }
                 case Some((ctx, chunkAcc, _)) =>
@@ -827,7 +827,7 @@ private[xml] object EventParser {
         (ctx, chunkAcc) <- acceptChar(ctx, '.', "26", "expected dot", chunkAcc)
         sb = new StringBuilder("1.")
         (ctx, chunkAcc) <- untilChar(ctx, !_.isDigit, sb, chunkAcc)
-        version = sb.result
+        version = sb.result()
         res <- if (version.length == 2) {
           fail("26", "expected non empty minor version", Some(chunkAcc))
         } else {
@@ -879,7 +879,7 @@ private[xml] object EventParser {
                                             "80",
                                             "'encoding' attribute value must end with proper delimiter",
                                             chunkAcc)
-            } yield (ctx, chunkAcc, (false, Some(sb.result)))
+            } yield (ctx, chunkAcc, (false, Some(sb.result())))
           } else {
             fail("80", "expected space before 'encoding' attribute", Some(chunkAcc))
           }

@@ -17,13 +17,13 @@ package fs2.data.csv
 
 import fs2._
 
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 import cats.data.NonEmptyList
 
-class CsvExceptionSpec extends AnyFlatSpec with Matchers {
+import weaver._
 
-  "previous valid events" should "be emitted before Exception" in {
+object CsvExceptionSpec extends SimpleIOSuite {
+
+  pureTest("previous valid events should be emitted before Exception") {
 
     val input = """1,2,3
                   |a,b,c
@@ -31,12 +31,14 @@ class CsvExceptionSpec extends AnyFlatSpec with Matchers {
 
     val stream = Stream.emit(input).through(rows[Fallible, String]()).attempt
 
-    stream.compile.toList should matchPattern {
+    expect(stream.compile.toList match {
       case Right(
           List(Right(NonEmptyList("1", List("2", "3"))),
                Right(NonEmptyList("a", List("b", "c"))),
                Left(_: CsvException))) =>
-    }
+        true
+      case _ => false
+    })
 
   }
 

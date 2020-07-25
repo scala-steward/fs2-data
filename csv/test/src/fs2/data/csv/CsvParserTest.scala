@@ -16,78 +16,82 @@
 package fs2.data.csv
 
 import io.circe.parser._
+
 import fs2._
 import fs2.io._
 
 import cats.effect._
+import cats.implicits._
 
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import weaver._
 
-import scala.concurrent._
+import java.nio.file.Paths
 
-import better.files.{Resource => _, _}
+object CsvParserTest extends IOSuite {
 
-import java.util.concurrent._
+  override type Res = Blocker
+  def sharedResource: Resource[IO, Res] = Blocker[IO]
 
-class CsvParserTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
+  private val testFileDir = Paths.get("csv/test/resources/csv-spectrum/csvs/")
 
-  private var executor: ExecutorService = _
-  private var blocker: Blocker = _
-
-  implicit val cs = IO.contextShift(ExecutionContext.global)
-
-  override def beforeAll(): Unit = {
-    executor = Executors.newFixedThreadPool(2)
-    blocker = Blocker.liftExecutorService(executor)
-  }
-
-  override def afterAll(): Unit = {
-    executor.shutdown()
-  }
-
-  private val testFileDir: File = File("csv/test/resources/csv-spectrum/csvs/")
-  for (path <- testFileDir.list) {
-    val expected =
-      parse(File(s"csv/test/resources/csv-spectrum/json/${path.nameWithoutExtension}.json").contentAsString)
-        .flatMap(_.as[List[Map[String, String]]])
-        .toTry
-        .get
-    s"File ${testFileDir.relativize(path).toString}" should "be parsed correctly" in {
-      val actual =
+  def allExpected(blocker: Blocker) =
+    file
+      .directoryStream[IO](blocker, testFileDir)
+      .evalMap { path =>
+        val name = path.getFileName.toFile.getName.stripSuffix(".csv")
         file
-          .readAll[IO](path.path, blocker, 1024)
-          .through(fs2.text.utf8Decode)
-          .through(rows())
-          .through(headers[IO, String])
+          .readAll[IO](Paths.get(s"csv/test/resources/csv-spectrum/json/$name.json"), blocker, 1024)
+          .through(text.utf8Decode)
           .compile
-          .toList
-          .unsafeRunSync()
-          .map(_.toMap)
-      actual should be(expected)
-    }
+          .string
+          .flatMap { rawExpected =>
+            parse(rawExpected)
+              .flatMap(_.as[List[Map[String, String]]])
+              .liftTo[IO]
+          }
+          .map(path -> _)
+      }
 
-    it should "be encoded and parsed correctly" in {
-      val reencoded =
-        Stream
-          .emits(expected)
-          .map(m => CsvRow.fromListHeaders(m.toList))
-          .unNone
-          .through(encodeRowWithFirstHeaders)
-          .through(toStrings())
-          .through(rows[IO, String]())
-          .through(headers[IO, String])
-          .compile
-          .toList
-          .unsafeRunSync()
-          .map(_.toMap)
-
-      reencoded should be(expected)
-    }
+  test("Standard test suite should pass") { blocker =>
+    allExpected(blocker)
+      .evalMap {
+        case (path, expected) =>
+          file
+            .readAll[IO](path, blocker, 1024)
+            .through(fs2.text.utf8Decode)
+            .through(rows())
+            .through(headers[IO, String])
+            .compile
+            .toList
+            .map(_.map(_.toMap))
+            .map(actual => expect(actual == expected, s"Invalid file $path").toExpectations)
+      }
+      .compile
+      .foldMonoid
   }
 
-  it should "handle literal quotes if specified" in {
+  test("Standard test suite files should be encoded and parsed correctly") { blocker =>
+    allExpected(blocker)
+      .evalMap {
+        case (path, expected) =>
+          Stream
+            .emits(expected)
+            .map(m => CsvRow.fromListHeaders(m.toList))
+            .unNone
+            .through(encodeRowWithFirstHeaders)
+            .through(toStrings())
+            .through(rows[IO, String]())
+            .through(headers[IO, String])
+            .compile
+            .toList
+            .map(_.map(_.toMap))
+            .map(reencoded => expect(reencoded == expected, s"Invalid file $path").toExpectations)
+      }
+      .compile
+      .foldMonoid
+  }
+
+  test("Parser should handle literal quotes if specified") {
     val content =
       """name,age,description
         |John Doe,47,no quotes
@@ -103,7 +107,6 @@ class CsvParserTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
       Map("name" -> "Alice Grey", "age" -> "78", "description" -> "contains \"a quote")
     )
 
-    val reencoded =
       Stream
         .emit(content)
         .covary[IO]
@@ -111,9 +114,7 @@ class CsvParserTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
         .through(headers[IO, String])
         .compile
         .toList
-        .unsafeRunSync()
-        .map(_.toMap)
-
-    reencoded should be(expected)
+        .map(_.map(_.toMap))
+        .map(actual => expect(actual == expected).toExpectations)
   }
 }

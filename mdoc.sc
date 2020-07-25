@@ -121,6 +121,7 @@ trait MdocModule extends ScalaModule {
     val opts = mdocScalacOptions()
     val pOpts = mdocPluginJars().map(pathRef => "-Xplugin:" + pathRef.path.toIO.getAbsolutePath)
     val mdocArgs = List("--in", in, "--out", out, "--scalac-options", (opts ++ pOpts).mkString(" "), "--no-link-hygiene") ++ re.toSeq.flatMap(Seq("--include", _)) ++ site
+    println(mdocClasspath().map(_.path.toIO.getAbsolutePath).mkString(java.io.File.pathSeparator))
     os.proc(
       'java,
       "-cp", mdocClasspath().map(_.path.toIO.getAbsolutePath).mkString(java.io.File.pathSeparator),

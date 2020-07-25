@@ -12,10 +12,10 @@ import mdoc.MdocModule
 import ammonite.ops._
 import mill.modules.Jvm.runSubprocess
 
-val scala212 = "2.12.11"
-val scala213 = "2.13.2"
+val scala212 = "2.12.12"
+val scala213 = "2.13.3"
 
-val fs2Version = "2.4.1"
+val fs2Version = "2.4.2"
 val circeVersion = "0.13.0"
 val shapelessVersion = "2.3.3"
 
@@ -41,12 +41,11 @@ trait Fs2DataModule extends ScalaModule with ScalafmtModule {
   trait Fs2DataTests extends Tests {
     def ivyDeps =
       Agg(
-        ivy"org.scalatest::scalatest:3.1.2",
-        ivy"com.github.pathikrit::better-files:3.8.0",
+        ivy"com.disneystreaming::weaver-framework:0.4.2-RC1",
         ivy"io.circe::circe-parser:$circeVersion",
         ivy"co.fs2::fs2-io:$fs2Version"
       )
-    def testFrameworks = Seq("org.scalatest.tools.Framework")
+    def testFrameworks = Seq("weaver.framework.TestFramework")
   }
 
 }
@@ -163,7 +162,7 @@ class JsonModule(val crossScalaVersion: String) extends Fs2DataModule with Cross
 
   object test extends Fs2DataTests {
     def moduleDeps = Seq(circe, diffson)
-    def ivyDeps = super.ivyDeps() ++ Seq(ivy"org.gnieh::diffson-circe:4.0.2")
+    def ivyDeps = super.ivyDeps() ++ Seq(ivy"org.gnieh::diffson-circe:4.0.3")
   }
 
   object interpolators extends Fs2DataModule with PublishModule {
@@ -212,7 +211,7 @@ class JsonModule(val crossScalaVersion: String) extends Fs2DataModule with Cross
   object diffson extends Fs2DataModule with PublishModule {
     def scalaVersion = outer.scalaVersion
     def moduleDeps = Seq(outer)
-    def ivyDeps = Agg(ivy"org.gnieh::diffson-core:4.0.2")
+    def ivyDeps = Agg(ivy"org.gnieh::diffson-core:4.0.3")
 
     def publishVersion = fs2DataVersion
 
@@ -262,7 +261,7 @@ object benchmarks extends Cross[Benchmarks](scala212, scala213)
 class Benchmarks(val crossScalaVersion: String) extends Fs2DataModule with CrossScalaModule with Jmh {
   def moduleDeps = Seq(csv(crossScalaVersion))
 
-  def ivyDeps = T { super.ivyDeps() ++ Agg(ivy"com.github.pathikrit::better-files:3.8.0") }
+  def ivyDeps = T { super.ivyDeps() ++ Agg(ivy"com.github.pathikrit::better-files:3.9.1") }
 
   def millSourcePath = os.pwd / "benchmarks"
 }
@@ -282,12 +281,12 @@ object documentation extends Fs2DataModule with MdocModule {
       xml(scala212)
     )
 
-  def mdocVersion = "2.2.0"
+  def mdocVersion = "2.2.4"
 
   def mdocTargetDirectory = os.pwd / 'site / 'content / 'documentation
 
   def ivyDeps =
-    Agg(ivy"com.beachape::enumeratum:1.5.15", ivy"org.gnieh::diffson-circe:4.0.2", ivy"co.fs2::fs2-io:$fs2Version")
+    Agg(ivy"com.beachape::enumeratum:1.6.1", ivy"org.gnieh::diffson-circe:4.0.3", ivy"co.fs2::fs2-io:$fs2Version")
 
 }
 
@@ -410,6 +409,6 @@ def unidoc(ev: Evaluator) = T.command {
 object scalafix extends ScalaModule with ScalafmtModule {
   def scalaVersion = scala213
 
-  def ivyDeps = Agg(ivy"ch.epfl.scala::scalafix-core:0.9.17")
+  def ivyDeps = Agg(ivy"ch.epfl.scala::scalafix-core:0.9.19")
 
 }
